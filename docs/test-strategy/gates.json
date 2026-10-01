@@ -1,0 +1,8 @@
+{
+  "_comment": "Machine-readable gate thresholds. Human-readable rationale: docs/test-strategy/gates.md. Owner: AI Quality Engineering lead.",
+  "deterministic": { "promoteAt": 1.0 },
+  "engineering": { "maxFailures": 0 },
+  "judge": { "promoteAt": 0.9, "humanReviewAt": 0.8, "requiresCalibration": { "minKappa": 0.7, "minItems": 50 } },
+  "mutation": { "promoteAt": 70, "humanReviewAt": 60 },
+  "perf": { "p95Ms": 300 }
+}

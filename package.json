@@ -1,0 +1,46 @@
+{
+  "name": "preclear",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev:api": "npm run dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web",
+    "build": "npm run build -w apps/web",
+    "typecheck": "tsc --noEmit && npm run typecheck -w apps/web",
+    "test:unit": "vitest run",
+    "test:api": "playwright test --project=api",
+    "test:e2e": "playwright test --project=e2e",
+    "test:mutation": "stryker run",
+    "contracts:build": "node packages/contracts/scripts/build-openapi.ts",
+    "contracts:check": "node packages/contracts/scripts/build-openapi.ts --check",
+    "deps:check": "node scripts/check-deps.mjs",
+    "lint:tests": "node scripts/lint-tests.mjs",
+    "llm:models": "node --env-file-if-exists=.env scripts/list-models.mjs",
+    "eval": "promptfoo eval -c evals/promptfooconfig.yaml --no-progress-bar --no-table -o evals/.out/results.json",
+    "eval:summary": "node scripts/eval-summary.mjs",
+    "eval:engineering": "node evals/engineering/check-tests.mjs",
+    "eval:calibrate": "node --env-file-if-exists=.env evals/scripts/calibrate.ts",
+    "trace": "node scripts/trace-report.ts",
+    "gate": "node scripts/release-gate.mjs",
+    "dashboard": "node scripts/dashboard.mjs",
+    "feedback:to-cases": "node scripts/flag-to-case.mjs"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@stryker-mutator/core": "^10.0.0",
+    "@types/node": "^26.6.3",
+    "promptfoo": "^0.123.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

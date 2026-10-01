@@ -1,0 +1,87 @@
+name: Evals
+
+# Pillar 2: AI evals in CI. The golden dataset is in a PRIVATE repo and is read with a read-only token.
+# This repo is PUBLIC, so nothing that contains expected answers may be printed or uploaded:
+#  - promptfoo's output is discarded (it includes the golden answers)
+#  - only a public-safe scorecard (case IDs, pass/fail, rates) is shown and uploaded
+# Starts non-blocking. Set the repo variable EVALS_BLOCKING=true once the judge is calibrated (kappa >= 0.7).
+on:
+  pull_request:
+    paths:
+      - 'apps/api/prompts/**'
+      - 'apps/api/src/llm/**'
+      - 'apps/api/src/risk-summary.ts'
+      - 'apps/api/src/rules.ts'
+      - 'evals/**'
+      - 'docs/business-rules/**'
+      - 'tests/**'
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+# Free-tier model quotas are small. Never run two evals at once.
+concurrency:
+  group: evals
+  cancel-in-progress: false
+
+jobs:
+  evals:
+    name: AI evals
+    runs-on: ubuntu-latest
+    # Pull requests from forks get no secrets: skip them instead of failing.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 40
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      LLM_MODEL: ${{ vars.LLM_MODEL }}
+      JUDGE_MODEL: ${{ vars.JUDGE_MODEL }}
+      EVAL_INCLUDE_DRAFTS: ${{ vars.EVAL_INCLUDE_DRAFTS }}
+      GOLDEN_DIR: .golden-data
+      PROMPTFOO_DISABLE_TELEMETRY: '1'
+      PROMPTFOO_DISABLE_UPDATE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: Check out the private golden dataset (read-only token)
+        uses: actions/checkout@v4
+        with:
+          repository: lucaram/golden-dataset
+          token: ${{ secrets.GOLDEN_READ_TOKEN }}
+          path: .golden-data
+          persist-credentials: false
+
+      - name: Product track (AI risk summary)
+        id: product
+        continue-on-error: ${{ vars.EVALS_BLOCKING != 'true' }}
+        run: npm run eval > /dev/null 2>&1
+
+      - name: Public-safe scorecard
+        if: always()
+        run: npm run eval:summary
+
+      - name: Engineering track (what AI-generated tests must contain)
+        continue-on-error: true
+        run: npm run eval:engineering
+
+      - name: Judge calibration against human labels
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        run: npm run eval:calibrate
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-scorecard
+          # Explicit list on purpose: evals/.out/results.json holds the golden answers and is never uploaded.
+          path: |
+            evals/.out/scorecard.json
+            evals/.out/engineering.json
+            evals/.out/calibration.json
+          if-no-files-found: ignore

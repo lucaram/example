@@ -1,0 +1,20 @@
+{
+  "_comment": "Approved direct dependencies. Owner: Security. Changes need review (CODEOWNERS).",
+  "approved": [
+    "@fastify/cors",
+    "@playwright/test",
+    "@stryker-mutator/core",
+    "@types/node",
+    "@types/react",
+    "@types/react-dom",
+    "fastify",
+    "next",
+    "promptfoo",
+    "react",
+    "react-dom",
+    "typescript",
+    "vitest",
+    "yaml",
+    "zod"
+  ]
+}

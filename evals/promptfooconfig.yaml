@@ -1,0 +1,31 @@
+# Promptfoo (open source, MIT). Pillar 2: evals as a release gate.
+# Product track: is the AI risk summary correct, grounded and injection-safe?
+# Run locally:  npm run eval   (needs GROQ_API_KEY and a clone of the golden repo at GOLDEN_DIR)
+# Plumbing check without a key:  set EVAL_MODE=mock
+description: PreClear AI product quality (REQ-160, REQ-161)
+
+# The prompt is built by the real application code inside provider.mjs. This line is a placeholder.
+prompts:
+  - '{{security}}'
+
+providers:
+  - id: file://provider.mjs
+    label: risk-summary.v1
+
+tests: file://load-golden.mjs
+
+defaultTest:
+  assert:
+    # 1. Deterministic first: schema, risk level, required and forbidden rule citations.
+    - type: javascript
+      value: file://asserts.mjs:deterministic
+      metric: deterministic
+    # 2. LLM-as-judge second (a different model family from the generator, calibrated against human labels).
+    - type: javascript
+      value: file://asserts.mjs:judgeAssertion
+      metric: judge
+
+# Free tiers are rate limited: go slowly. Responses are cached, so re-runs are cheap.
+evaluateOptions:
+  maxConcurrency: 1
+  delay: 2500

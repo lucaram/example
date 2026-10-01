@@ -1,0 +1,36 @@
+# Pillar 7: ownership as code. Enable "Require review from Code Owners" in branch protection for main.
+# For this solo demo every role is the same person. In a team, replace each handle with the real group
+# (for example @org/product-owners). The structure is the point: each folder has a named owner.
+
+# Product Owner + compliance: what "correct" means
+/docs/requirements/        @lucaram
+/docs/business-rules/      @lucaram
+
+# Architect / tech lead: contracts and architecture
+/docs/contracts/           @lucaram
+/docs/architecture/        @lucaram
+/packages/contracts/       @lucaram
+
+# AI Quality Engineering: tests, evals, strategy, gates, judge
+/tests/                    @lucaram
+/evals/                    @lucaram
+/docs/test-strategy/       @lucaram
+/scripts/                  @lucaram
+/perf/                     @lucaram
+
+# Security and Compliance: policy, agent permissions, hooks, dependencies
+/docs/policy/              @lucaram
+/AGENTS.md                 @lucaram
+/CLAUDE.md                 @lucaram
+/.claude/                  @lucaram
+/.github/agents/           @lucaram
+/.github/hooks/            @lucaram
+/.github/instructions/     @lucaram
+/.github/skills/           @lucaram
+
+# DevOps: pipelines and release gates
+/.github/workflows/        @lucaram
+/.github/CODEOWNERS        @lucaram
+
+# Software engineers: services and prompts (a prompt change also needs an eval run)
+/apps/                     @lucaram

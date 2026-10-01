@@ -1,0 +1,23 @@
+name: Traceability
+
+# Pillar 3: every pull request must record how AI was used (agent, model, prompt version, context commit, eval run).
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  pr-description:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Validate the PR description
+        env:
+          # Passed through the environment, never interpolated into the script (injection safe).
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/check-pr-template.mjs

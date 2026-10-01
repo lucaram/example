@@ -1,0 +1,85 @@
+name: Release
+
+# Pillar 4: the release gate. Promote, hold, or send to a human, using docs/test-strategy/gates.json.
+# One-time setup in GitHub: Settings > Environments
+#   - production-sim      (no reviewers)
+#   - compliance-review   (required reviewer: you, the compliance officer for this demo)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  evals:
+    uses: ./.github/workflows/evals.yml
+    secrets: inherit
+
+  gate:
+    name: Release gate
+    needs: [ci, evals]
+    # Run the gate even when a check failed, so the decision and its reasons are always recorded.
+    if: always()
+    runs-on: ubuntu-latest
+    outputs:
+      decision: ${{ steps.gate.outputs.decision }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with: { name: playwright-results, path: test-results }
+        continue-on-error: true
+      - uses: actions/download-artifact@v4
+        with: { name: mutation-report, path: reports/mutation }
+        continue-on-error: true
+      - uses: actions/download-artifact@v4
+        with: { name: perf-summary, path: perf/out }
+        continue-on-error: true
+      - uses: actions/download-artifact@v4
+        with: { name: eval-scorecard, path: evals/.out }
+        continue-on-error: true
+      - name: Decide
+        id: gate
+        run: npm run gate
+      - name: Traceability and dashboard
+        if: always()
+        run: |
+          npm run trace || true
+          npm run dashboard
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-evidence
+          path: |
+            reports/trace-report.*
+            reports/dashboard.html
+            evals/.out/gate.json
+          if-no-files-found: ignore
+
+  promote:
+    name: Promote (simulated deploy)
+    needs: gate
+    if: needs.gate.outputs.decision == 'promote'
+    runs-on: ubuntu-latest
+    environment: production-sim
+    steps:
+      - run: echo "Everything green and trusted. A real pipeline would deploy here."
+
+  human-review:
+    name: Human review (compliance sign-off)
+    needs: gate
+    if: needs.gate.outputs.decision == 'human-review'
+    runs-on: ubuntu-latest
+    # Required reviewers on this environment make the job wait for a person.
+    environment: compliance-review
+    steps:
+      - run: echo "A human approved this release after reviewing the gate reasons and trace report."

@@ -1,0 +1,33 @@
+# Secrets: never commit
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output
+node_modules/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Test, eval and report output
+playwright-report/
+test-results/
+reports/
+perf/out/
+.stryker-tmp/
+.promptfoo/
+
+# Eval results contain the golden expected answers. Never commit or upload them.
+evals/.out/
+
+# Runtime data (officer feedback)
+apps/api/data/
+
+# The golden dataset lives in a SEPARATE private repo. Belt and braces:
+golden-dataset/
+.golden-data/
+
+# Agent audit log written by the guardrail hook
+.audit/

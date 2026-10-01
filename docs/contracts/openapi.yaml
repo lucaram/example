@@ -1,0 +1,457 @@
+openapi: 3.0.3
+info:
+  title: PreClear API
+  version: 0.1.0
+  description: GENERATED from packages/contracts/src/index.ts. Do not edit by hand (npm run contracts:build).
+paths:
+  /health:
+    get:
+      operationId: health
+      responses:
+        "200":
+          description: OK
+  /requests:
+    post:
+      operationId: createRequest
+      summary: Employee submits a pre-clearance request (REQ-101, REQ-142)
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - employee
+              - compliance_officer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRequestBody"
+      responses:
+        "201":
+          description: Created. status is "blocked" with reason "Restricted list match" when BR-007 applies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreClearanceRequest"
+        "400":
+          description: Validation error, e.g. missing employeeId
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing identity headers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Only employees may submit requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: listRequests
+      summary: Compliance officer lists requests (REQ-150)
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - employee
+              - compliance_officer
+      responses:
+        "200":
+          description: List
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PreClearanceRequest"
+        "401":
+          description: Missing identity headers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Only compliance officers may list requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /requests/{id}:
+    get:
+      operationId: getRequest
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - employee
+              - compliance_officer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreClearanceRequest"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /requests/{id}/decision:
+    post:
+      operationId: decideRequest
+      summary: Only compliance officers approve or reject (REQ-150, BR-012)
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - employee
+              - compliance_officer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionBody"
+      responses:
+        "200":
+          description: Decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreClearanceRequest"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Only compliance officers may decide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Request is blocked or already decided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /requests/{id}/risk-summary:
+    post:
+      operationId: createRiskSummary
+      summary: AI advisory risk summary for the officer (REQ-160, REQ-161). Never decides.
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - employee
+              - compliance_officer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskSummary"
+        "403":
+          description: Only compliance officers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: The model output failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /requests/{id}/risk-summary/feedback:
+    post:
+      operationId: summaryFeedback
+      summary: Officer flags a summary; feeds production-to-eval loop
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - employee
+              - compliance_officer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackBody"
+      responses:
+        "204":
+          description: Recorded
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    CreateRequestBody:
+      type: object
+      properties:
+        employeeId:
+          type: string
+          minLength: 1
+        security:
+          type: string
+          minLength: 1
+          maxLength: 100
+        side:
+          type: string
+          enum:
+            - buy
+            - sell
+        quantity:
+          type: integer
+          minimum: 0
+          exclusiveMinimum: true
+          maximum: 9007199254740991
+        note:
+          type: string
+          maxLength: 500
+      required:
+        - employeeId
+        - security
+        - side
+        - quantity
+      additionalProperties: false
+    PreClearanceRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        employeeId:
+          type: string
+        security:
+          type: string
+        side:
+          type: string
+          enum:
+            - buy
+            - sell
+        quantity:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        note:
+          type: string
+        status:
+          type: string
+          enum:
+            - pending
+            - blocked
+            - approved
+            - rejected
+        reason:
+          type: string
+        rulesTriggered:
+          type: array
+          items:
+            type: string
+            enum:
+              - BR-007
+              - BR-012
+              - BR-020
+        createdAt:
+          type: string
+        riskSummary:
+          type: object
+          properties:
+            risk:
+              type: string
+              enum:
+                - low
+                - medium
+                - high
+            reasons:
+              minItems: 1
+              maxItems: 5
+              type: array
+              items:
+                type: string
+                minLength: 1
+            citedRules:
+              type: array
+              items:
+                type: string
+                enum:
+                  - BR-007
+                  - BR-012
+                  - BR-020
+          required:
+            - risk
+            - reasons
+            - citedRules
+          additionalProperties: false
+      required:
+        - id
+        - employeeId
+        - security
+        - side
+        - quantity
+        - status
+        - rulesTriggered
+        - createdAt
+      additionalProperties: false
+    DecisionBody:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum:
+            - approve
+            - reject
+      required:
+        - decision
+      additionalProperties: false
+    RiskSummary:
+      type: object
+      properties:
+        risk:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+        reasons:
+          minItems: 1
+          maxItems: 5
+          type: array
+          items:
+            type: string
+            minLength: 1
+        citedRules:
+          type: array
+          items:
+            type: string
+            enum:
+              - BR-007
+              - BR-012
+              - BR-020
+      required:
+        - risk
+        - reasons
+        - citedRules
+      additionalProperties: false
+    FeedbackBody:
+      type: object
+      properties:
+        rating:
+          type: string
+          enum:
+            - up
+            - down
+        comment:
+          type: string
+          maxLength: 500
+      required:
+        - rating
+      additionalProperties: false
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: string
+      required:
+        - error
+      additionalProperties: false

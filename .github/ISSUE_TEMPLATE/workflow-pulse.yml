@@ -1,0 +1,36 @@
+name: Workflow pulse
+description: Two-minute survey on the AI-assisted workflow (run at days 30, 60 and 90). Gates people dislike get bypassed.
+title: 'Workflow pulse: '
+labels: [pulse]
+body:
+  - type: markdown
+    attributes:
+      value: Score each statement from 1 (strongly disagree) to 5 (strongly agree). Please do not include client or personal data.
+  - type: dropdown
+    id: saves-time
+    attributes:
+      label: The AI-assisted workflow saves me time.
+      options: ['1', '2', '3', '4', '5']
+    validations: { required: true }
+  - type: dropdown
+    id: trust-gate
+    attributes:
+      label: I trust the results of the eval gate.
+      options: ['1', '2', '3', '4', '5']
+    validations: { required: true }
+  - type: dropdown
+    id: little-rework
+    attributes:
+      label: AI-generated tests need little rework before I accept them.
+      options: ['1', '2', '3', '4', '5']
+    validations: { required: true }
+  - type: dropdown
+    id: know-failure
+    attributes:
+      label: I know what to do when the gate fails.
+      options: ['1', '2', '3', '4', '5']
+    validations: { required: true }
+  - type: textarea
+    id: improve
+    attributes:
+      label: What one thing would make this workflow better?

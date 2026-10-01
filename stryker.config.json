@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
+  "_comment": "Mutation testing: do the tests actually catch bugs? Aimed at the deterministic business logic. Score feeds the release gate (docs/test-strategy/gates.json). Uses the generic command runner because the Vitest plugin did not activate mutants with Vitest 5. tsconfigFile points at a missing file on purpose: Stryker 10 cannot parse tsconfig with TypeScript 7.",
+  "testRunner": "command",
+  "commandRunner": { "command": "npx vitest run" },
+  "mutate": ["apps/api/src/rules.ts", "apps/api/src/risk-summary.ts"],
+  "reporters": ["clear-text", "json"],
+  "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+  "thresholds": { "high": 80, "low": 60, "break": null },
+  "coverageAnalysis": "off",
+  "concurrency": 4,
+  "tempDirName": ".stryker-tmp",
+  "tsconfigFile": "tsconfig.stryker-skip.json"
+}
