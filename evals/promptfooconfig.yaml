@@ -10,7 +10,7 @@ prompts:
 
 providers:
   - id: file://provider.mjs
-    label: risk-summary.v1
+    label: risk-summary.v2
 
 tests: file://load-golden.mjs
 

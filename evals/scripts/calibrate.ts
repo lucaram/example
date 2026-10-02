@@ -36,6 +36,8 @@ const pauseMs = Number(process.env.EVAL_MIN_INTERVAL_MS ?? 6000);
 const judged: Label[] = [];
 const human: Label[] = [];
 const disagreements: string[] = [];
+// The judge's free-text reasons can quote golden content. They are printed locally only, never written to calibration.json.
+const reasons = new Map<string, string>();
 
 for (const item of items) {
   const input = {
@@ -48,7 +50,10 @@ for (const item of items) {
   const label: Label = verdict.pass ? 'pass' : 'fail';
   judged.push(label);
   human.push(item.human_label!);
-  if (label !== item.human_label) disagreements.push(item.id);
+  if (label !== item.human_label) {
+    disagreements.push(item.id);
+    reasons.set(item.id, `human=${item.human_label}, judge=${label}: ${verdict.reason}`);
+  }
 }
 
 const result = compare(judged, human);
@@ -71,5 +76,7 @@ writeFileSync(resolve(repoRoot, 'evals/.out/calibration.json'), JSON.stringify(o
 
 console.log(`Judge ${out.judgeVersion} on ${out.judgeModel}: n=${out.n} agreement=${out.agreement} kappa=${out.kappa}`);
 if (disagreements.length) console.log(`Disagreements with the human label: ${disagreements.join(', ')}`);
+// CI logs are public, so the reasons are shown only when run on a developer machine.
+if (!process.env.GITHUB_ACTIONS) for (const [id, reason] of reasons) console.log(`  ${id}  ${reason}`);
 if (result.n < MIN_ITEMS) console.log(`Only ${result.n} labelled items. Need ${MIN_ITEMS}-100 before the judge may block releases.`);
 console.log(trusted ? 'TRUSTED: the judge may be a blocking gate.' : 'NOT TRUSTED yet: keep the judge non-blocking (human review).');

@@ -72,7 +72,7 @@ The flow of the whole thing: product, then context, then tests, then evals, then
 - API: Fastify with Node running TypeScript directly (no build step). Files: `apps/api/src/app.ts`, `rules.ts`, `store.ts`, `auth.ts`.
 - Web app: Next.js. Files: `apps/web/src/app/page.tsx` (submit) and `apps/web/src/app/officer/page.tsx` (review).
 - Contract: `packages/contracts/src/index.ts` is the single source of truth for API shapes. It generates `docs/contracts/openapi.yaml` via `build-openapi.ts`, and CI fails if they drift apart.
-- AI feature: `apps/api/src/risk-summary.ts` plus the versioned prompt `apps/api/prompts/risk-summary.v1.md`.
+- AI feature: `apps/api/src/risk-summary.ts` plus the versioned prompt `apps/api/prompts/risk-summary.v2.md`.
 - Model client: `apps/api/src/llm/` is provider-neutral. It has a Groq client (free tier) and a deterministic mock. Swapping providers means one new class plus config.
 - The key design rule is in ADR 0001: the AI advises, code and a human decide.
 
@@ -143,27 +143,105 @@ The evals check the AI product quality: is the risk summary correct, grounded an
 1. `evals/load-golden.mjs` loads cases from the private golden repo (the golden repo is stored in `C:\Users\luca_\Desktop\golden-dataset`).
 2. `evals/provider.mjs` runs the real app code path, not a copy of the prompt.
 3. `evals/asserts.mjs` runs the deterministic checks first, then the judge.
-4. `evals/judge.ts` with `evals/judge/rubric.v1.md` is the LLM judge. It never sees the expected answers.
+4. `evals/judge.ts` with `evals/judge/rubric.v2.md` is the LLM judge. It never sees the expected answers.
 5. `evals/scripts/calibrate.ts` with `evals/stats.ts` measures judge-versus-human agreement (Cohen's kappa).
 6. `evals/engineering/check-tests.mjs` checks what AI-generated tests must contain (the AI engineering quality track).
 7. `evals/throttle.mjs` and a 429 retry in `groq.ts` keep the free tier working.
 
 Models: the generator is `qwen/qwen3.8-27b` and the judge is `openai/gpt-oss-120b`, both on Groq's free tier. They come from different families on purpose.
 
-GOLDEN DATASET (SEPARATE PRIVATE REPO)
-The golden dataset is in its own private repo. It has 20 product cases, 7 engineering checks and a judge calibration template of 10 unlabelled items. Every case is `status: draft` until a Product Owner approves it. It is separate so agents and public readers never see the expected answers.
-Draft cases don't count as approved golden cases and aren't used for pass/fail gating. While all cases are draft, the eval finds no approved cases and fails. The eval workflow (`.github/workflows/evals.yml`) is non-blocking for now, so the PR isn't blocked, but no scorecard is produced and the release gate (`scripts/release-gate.mjs`) returns `hold` (evidence missing). A case becomes a gating case only once the Product Owner approves it.
-It is kept on a separate private repo to keep the eval honest.
-If agents or developers can see the expected answers, they can tune prompts to pass those specific cases, and the evals stop measuring quality. A separate private repo also gives tighter access control and lets humans curate the data on their own.
+### Evals in plain words
 
-High-level structure
+An eval is a test for an AI feature. A normal test checks for one exact output. An AI answer is worded differently every time, so an eval checks the qualities that matter instead: is the risk level right, is the right rule cited, does it stay advisory, does it resist a note that says "ignore your instructions"?
+
+An eval works like this:
+1. Take a fixed set of example requests (called cases).
+2. Run the real AI feature on each one.
+3. Score each answer.
+4. Report how many passed.
+
+Each answer gets two kinds of checks:
+- **Deterministic checks** are plain code. They check the structure, the risk level and which rules are cited. They are exact and cheap, so they run first.
+- **The LLM judge** is a second AI model that reads the summary and a written rubric (`evals/judge/rubric.v2.md`). It checks that the summary is consistent, grounded, advisory, injection-safe and clear. It is never shown the expected answer. It is a different model family from the generator on purpose.
+
+### The golden dataset and why it is private
+
+"Golden" means the example requests together with the correct result, decided by a human. It is the yardstick the AI is measured against. It lives in its own private repo (ADR 0003, `C:\Users\luca_\Desktop\golden-dataset`) and has 20 product cases, 7 engineering checks and a judge calibration template of 10 items.
+
+It is private to keep the eval honest. If agents or developers can see the expected answers, they can tune prompts to pass those specific cases, and the score stops measuring real quality. A private repo also gives tighter access control and lets humans curate the data on their own. Agents are not allowed to read, list or edit it (`AGENTS.md`).
+
+### Why cases are approved
+
+The expected answer defines what "correct" means. If a wrong expectation gets in, the eval fails or passes for the wrong reason, and nobody notices. So the expected answers are a human decision, made by the Product Owner against the business rules.
+
+- `status: draft` means a proposed case that nobody has accepted yet.
+- `status: approved` means the Product Owner reviewed it and accepts the expected answer.
+
+Only approved cases count. Drafts are never run in CI. Nothing can become a gate just because someone wrote it.
+
+### Why the judge is calibrated, and what it proves
+
+The judge is an AI model, so it can be wrong. Before its verdict is allowed to block a release, we have to show it agrees with people. That is calibration:
+
+1. Humans read a set of example summaries and label each one `pass` or `fail`, using the same rubric.
+2. The judge labels the same summaries.
+3. `evals/scripts/calibrate.ts` compares the two and reports the raw agreement and Cohen's kappa. Kappa is agreement after removing what chance would give: 0 means no better than guessing, 1 means perfect agreement.
+
+What it proves: the judge's pass/fail matches human judgement, so its pass rate means something. The bar is at least 50 labelled items and kappa of 0.7 or more. Until then the judge is not trusted. Its results lead to a human review (`human-review` in the release gate), and it cannot promote or block a release on its own. Deterministic checks need no calibration because they are exact.
+
+Labels should come from someone other than the person who wrote the prompt or the rubric. Otherwise the agreement only shows one person agreeing with themselves.
+
+### What happens in CI
+
+The workflow `.github/workflows/evals.yml` runs on pull requests that touch prompts, LLM code, rules, evals or tests, and it can be started by hand (Actions, then Evals, then Run workflow).
+1. It checks out the private dataset with a read-only token.
+2. `scripts/count-approved.mjs` counts approved product cases, approved engineering cases and labelled calibration items (counts only, never content).
+3. Each step runs only if its count is above 0: the product track, the public-safe scorecard, the engineering track and the judge calibration (calibration is skipped on pull requests).
+4. If a step has approved cases (or labelled items) and errors or fails, the workflow fails. If nothing is approved, the step is skipped.
+5. The release gate (`scripts/release-gate.mjs`) reads the results and decides `promote`, `human-review` or `hold`. With no scorecard it returns `hold` (evidence missing).
+
+### Where to see the scorecard
+
+In GitHub, open the repo, then Actions, then Evals, then the run. The run's Summary page shows the "AI eval scorecard" table: number of cases, deterministic pass rate, judge pass rate, provider errors, and the prompt version and models used. It also lists the failed case IDs. The same data is in the `eval-scorecard` artifact at the bottom of the page (`scorecard.json`, `engineering.json`, `calibration.json`).
+
+CI shows only case IDs, categories and pass rates. This repo is public, and the raw results contain the golden answers, so they are discarded. To see why a case failed, run the eval locally.
+
+### Running the evals locally (if not using the CI)
+
+You need a `GROQ_API_KEY` in a `.env` file at the repo root (gitignored), and the path to your golden dataset clone. In PowerShell, from the Example repo:
+
+```
+cd C:\Users\luca_\Desktop\Example
+$env:GOLDEN_DIR = "C:\Users\luca_\Desktop\golden-dataset"
+npm run eval              # product track, about 3 minutes, writes evals/.out/results.json
+npm run eval:summary      # builds the public-safe scorecard, evals/.out/scorecard.json
+npm run eval:engineering  # checks the AI-generated tests
+npm run eval:calibrate    # compares the judge with the human labels, prints agreement and kappa
+```
+
+To see the summary the model wrote and the judge's reason for specific failed cases, replace the IDs in this command:
+
+```
+node -e "const d=require('./evals/.out/results.json');for(const r of d.results.results){const id=(r.testCase?.description||'').split(' ')[0];if(['PC-002','PC-003'].includes(id)){console.log(id);console.log('summary:',r.response?.output);console.log('judge:',(r.gradingResult?.componentResults||[]).filter(c=>c.assertion?.metric==='judge').map(c=>c.reason).join(' | '));console.log()}}"
+```
+
+`evals/.out/results.json` contains the golden inputs and answers. It is gitignored. Do not paste it into a pull request, a chat or an AI tool.
+
+### What humans edit
+
+Humans edit these in the golden dataset repo. Agents never do.
+- `product/*.yaml` (restricted, injection, non-matches) and `engineering/cases.yaml`: the Product Owner sets `status` to `approved`, or leaves it `draft`. This is per case, not per file, because each file holds many cases. Only approved cases gate.
+- `calibration/judge-labels.yaml`: a human reviewer sets `human_label` to `pass` or `fail` for each item. `null` means not labelled yet and the item is ignored. `suggested_label` is only a hint and the calibration script does not use it.
+- After editing, commit and push to the private repo. CI reads its default branch.
+
+### How the dataset is organised
+
 The dataset is split by evaluation type:
+- `engineering`: tests and generated-code quality checks
+- `product`: model behaviour on business-risk and security scenarios
+- `calibration`: judge calibration labels
 
-engineering → tests and generated-code quality checks
-product → model behavior on business-risk and security scenarios
-calibration → judge calibration labels
-So the “cases” are primarily stored as YAML files inside those directories, rather than in a single monolithic dataset file.
-
+The cases are stored as YAML files inside those directories, not in a single dataset file.
 
 File-by-file overview
 README.md

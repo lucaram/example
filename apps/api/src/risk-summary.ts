@@ -5,9 +5,9 @@ import { RiskSummary } from '@preclear/contracts';
 import type { PreClearanceRequest } from '@preclear/contracts';
 import type { LlmClient } from './llm/client.ts';
 
-export const PROMPT_VERSION = 'risk-summary.v1';
+export const PROMPT_VERSION = 'risk-summary.v2';
 
-const promptPath = resolve(dirname(fileURLToPath(import.meta.url)), '../prompts/risk-summary.v1.md');
+const promptPath = resolve(dirname(fileURLToPath(import.meta.url)), '../prompts/risk-summary.v2.md');
 
 interface PromptParts {
   system: string;

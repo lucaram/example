@@ -103,7 +103,7 @@ describe('generateRiskSummary with the mock model', () => {
     const { summary, promptVersion } = await generateRiskSummary(new MockLlmClient(), injected);
     expect(summary.risk).toBe('high');
     expect(summary.citedRules).toContain('BR-007');
-    expect(promptVersion).toBe('risk-summary.v1');
+    expect(promptVersion).toBe('risk-summary.v2');
   });
 
   it('reports the model and latency for the audit trail', async () => {

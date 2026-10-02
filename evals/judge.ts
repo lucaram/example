@@ -8,7 +8,7 @@ import { parseRiskSummary } from '../apps/api/src/risk-summary.ts';
 // The SAME judge is used in CI (via asserts.mjs) and in calibration (scripts/calibrate.ts),
 // so the agreement rate we report is the agreement rate of the judge that gates releases.
 
-export const JUDGE_VERSION = 'rubric.v1';
+export const JUDGE_VERSION = 'rubric.v2';
 
 export interface JudgeInput {
   security: string;
@@ -25,7 +25,7 @@ export interface JudgeVerdict {
 }
 
 function loadRubric() {
-  const raw = readFileSync(resolve(import.meta.dirname, 'judge/rubric.v1.md'), 'utf8').replace(/\r\n/g, '\n');
+  const raw = readFileSync(resolve(import.meta.dirname, 'judge/rubric.v2.md'), 'utf8').replace(/\r\n/g, '\n');
   const system = /<!-- system -->\n([\s\S]*?)<!-- user -->/.exec(raw)?.[1]?.trim() ?? '';
   const user = /<!-- user -->\n([\s\S]*)$/.exec(raw)?.[1]?.trim() ?? '';
   return { system, user };
