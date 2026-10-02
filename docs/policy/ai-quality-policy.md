@@ -1,6 +1,18 @@
 ﻿# AI quality policy (draft v0.1)
+ The policy is written for people, and nothing feeds them to an agent automatically, unless you specify it in AGENTS.md (not required for this demo, but could point at it in real project)
 
 Owner: Security and Compliance. Demo policy for PreClear, not StarCompliance policy.
+
+Purpose: the rules for how AI may be used: what data is allowed, what agents may and may not touch, when a human must review, and how changes are recorded.
+
+Who should own it: Security and Compliance, per the ownership model. In a real company they would write or at least approve it, because it is a control, not just documentation.
+
+Status here: a "draft v0.1" for the demo, not real company policy. I wrote the draft, and nobody has reviewed it yet.
+
+Who uses it: engineers, agents and auditors. Parts of it are enforced by tools, such as the hook, the dependency allow-list and the PR template check.
+
+The general rule for this project: AI can draft this document, but a human must own and approve it, especially the policy. A policy that nobody accountable has read isn't a control.That's why CODEOWNERS lists docs/policy/ for review.
+
 
 ## 1. Scope
 Any change produced or assisted by an AI agent, and the AI feature inside the product.

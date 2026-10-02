@@ -1,4 +1,13 @@
 # Playbook: working the PreClear way
+The policy is written for people, and nothing feeds them to an agent automatically.
+
+Purpose: a practical how-to for the team: add a feature, add a golden case, read a failed gate, calibrate the judge, set up GitHub.
+
+Who should own it: AI Quality Engineers and AI champions, who keep it up to date as the process changes.
+
+Status here: also drafted by me. A human should read it, run through it once and fix anything that doesn't match reality.
+
+The general rule for this project: AI can draft this document, but a human must own and approve. That's why CODEOWNERS lists docs/policy/ for review.
 
 For engineers and AI champions. Short on purpose.
 

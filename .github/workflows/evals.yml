@@ -4,7 +4,8 @@ name: Evals
 # This repo is PUBLIC, so nothing that contains expected answers may be printed or uploaded:
 #  - promptfoo's output is discarded (it includes the golden answers)
 #  - only a public-safe scorecard (case IDs, pass/fail, rates) is shown and uploaded
-# Starts non-blocking. Set the repo variable EVALS_BLOCKING=true once the judge is calibrated (kappa >= 0.7).
+# Only approved golden cases (and labelled calibration items) gate. Draft cases are never run in CI.
+# A step with nothing approved is skipped; a step with approved cases that errors or fails fails the job.
 on:
   pull_request:
     paths:
@@ -35,9 +36,9 @@ jobs:
     timeout-minutes: 40
     env:
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-      LLM_MODEL: ${{ vars.LLM_MODEL }}
-      JUDGE_MODEL: ${{ vars.JUDGE_MODEL }}
-      EVAL_INCLUDE_DRAFTS: ${{ vars.EVAL_INCLUDE_DRAFTS }}
+      # An unset repo variable expands to an empty string, which `??` in the code does not replace. Default here.
+      LLM_MODEL: ${{ vars.LLM_MODEL || 'qwen/qwen3.8-27b' }}
+      JUDGE_MODEL: ${{ vars.JUDGE_MODEL || 'openai/gpt-oss-120b' }}
       GOLDEN_DIR: .golden-data
       PROMPTFOO_DISABLE_TELEMETRY: '1'
       PROMPTFOO_DISABLE_UPDATE: '1'
@@ -57,22 +58,26 @@ jobs:
           path: .golden-data
           persist-credentials: false
 
+      # Only approved cases gate. Counts only are printed, never content.
+      - name: Count approved golden cases
+        id: approved
+        run: node scripts/count-approved.mjs
+
       - name: Product track (AI risk summary)
         id: product
-        continue-on-error: ${{ vars.EVALS_BLOCKING != 'true' }}
+        if: steps.approved.outputs.product != '0'
         run: npm run eval > /dev/null 2>&1
 
       - name: Public-safe scorecard
-        if: always()
+        if: always() && steps.approved.outputs.product != '0'
         run: npm run eval:summary
 
       - name: Engineering track (what AI-generated tests must contain)
-        continue-on-error: true
+        if: steps.approved.outputs.engineering != '0'
         run: npm run eval:engineering
 
       - name: Judge calibration against human labels
-        if: github.event_name != 'pull_request'
-        continue-on-error: true
+        if: github.event_name != 'pull_request' && steps.approved.outputs.calibration != '0'
         run: npm run eval:calibrate
 
       - uses: actions/upload-artifact@v4
